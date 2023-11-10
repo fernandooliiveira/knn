@@ -8,8 +8,8 @@ def generate_file_hyp(mt, title):
     plt.colorbar()
     plt.title(title)
     file_name = title + '.png'
-    plt.savefig(file_name)
-    # plt.show()
+    # plt.savefig(file_name)
+    plt.show()
 
 
 def assinatura_espectral_polpa(maca, naninca, prata):

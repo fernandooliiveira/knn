@@ -1,14 +1,17 @@
 # __all__ = []
-
-import scipy.io
 import numpy as np
-from kneed import KneeLocator
-import matplotlib.pyplot as plt
+import scipy.io
+from matplotlib import pyplot as plt
+from matplotlib.colors import ListedColormap
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 
+from cotovelo import pca_cotovelo, kmeans_cotovelo
+from sklearn.neighbors import KNeighborsClassifier
 
-from hyp_print import generate_file_hyp, assinatura_espectral_polpa, assinatura_espectral_casca
-
+from pca_banana import pca_banana
 
 PATH_CASCA_MACA = 'data/casca_maca.mat'
 PATH_CASCA_MARMELO = 'data/casca_marmelo.mat'
@@ -38,7 +41,6 @@ hyp_polpa_prata = scipy.io.loadmat(PATH_POLPA_PRATA).get('polpa_prata')
 # assinatura_espectral_polpa(hyp_polpa_maca, hyp_polpa_nanica, hyp_polpa_prata)
 # assinatura_espectral_casca(hyp_casca_maca, hyp_casca_nanica, hyp_casca_prata, hyp_casca_marmelo)
 
-
 def calc_bidimensional(mt, title):
     print(title)
     print(mt.shape)
@@ -47,92 +49,99 @@ def calc_bidimensional(mt, title):
 
 
 bi_casca_maca = calc_bidimensional(hyp_casca_maca, 'CASCA MACA: ')
-# bi_casca_marmelo = calc_bidimensional(hyp_casca_marmelo, 'CASCA MARMELO: ')
-# bi_casca_nanica = calc_bidimensional(hyp_casca_nanica, 'CASCA NANICA: ')
-# bi_casca_prata = calc_bidimensional(hyp_casca_prata, 'CASCA PRATA: ')
-# bi_polpa_maca = calc_bidimensional(hyp_polpa_maca, 'POLPA MACA: ')
-# bi_polpa_marmelo = calc_bidimensional(hyp_polpa_nanica, 'POLPA NANICA: ')
-# bi_polpa_prata = calc_bidimensional(hyp_polpa_prata, 'POLPA PRATA: ')
+bi_casca_marmelo = calc_bidimensional(hyp_casca_marmelo, 'CASCA MARMELO: ')
+bi_casca_nanica = calc_bidimensional(hyp_casca_nanica, 'CASCA NANICA: ')
+bi_casca_prata = calc_bidimensional(hyp_casca_prata, 'CASCA PRATA: ')
+bi_polpa_maca = calc_bidimensional(hyp_polpa_maca, 'POLPA MACA: ')
+bi_polpa_nanica = calc_bidimensional(hyp_polpa_nanica, 'POLPA NANICA: ')
+bi_polpa_prata = calc_bidimensional(hyp_polpa_prata, 'POLPA PRATA: ')
+
+# pca_cotovelo(bi_casca_maca)
+pca = PCA(n_components=2)
+# pca_casca_maca = pca_banana(pca, bi_casca_maca, 'Gráfico de Dispersão Casca Maca')
+pca_casca_maca = pca.fit_transform(bi_casca_maca)
+
+# pca2 = PCA(n_components=2)
+# pca_casca_marmelo = pca_banana(bi_casca_marmelo, 'Gráfico de Dispersão Casca Marmelo')
+# pca_casca_marmelo = pca2.fit_transform(bi_casca_marmelo)
 
 
-# pca = PCA(n_components=3)
-# pca.fit(bi_casca_maca)
-# print(pca.explained_variance_ratio_)
+# KMEANS
+# kmeans_cotovelo(pca_casca_maca)
+kmeans = KMeans(n_clusters=2, n_init=10, random_state=42)
+kmeans.fit(pca_casca_maca)
+labels = kmeans.labels_
 
-# pca = PCA(n_components=2)
-# pca_result = pca.fit_transform(bi_casca_maca)
-#
-# pc1 = pca_result[:, 0]
-# pc2 = pca_result[:, 1]
-#
-# colors = np.where(pc2 >= 0, 'blue', 'red')
-#
-# plt.figure(figsize=(8, 6))
-# plt.scatter(pc1, pc2, c=colors)
-#
-# plt.xlabel('PC1')
-# plt.ylabel('PC2')
-#
-# plt.title('Gráfico de Dispersão Casca Maca')
+# Visualizando os resultados
+# plt.scatter(pca_casca_maca[:, 0], pca_casca_maca[:, 1], c=labels, cmap='viridis', edgecolor='k', s=40)
+# plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], c='red', marker='X', s=200,
+#             label='Centróides')
+# plt.title('Resultado do K-Means com Dois Clusters')
+# plt.xlabel('Componente Principal 1')
+# plt.ylabel('Componente Principal 2')
+# plt.legend()
 # plt.show()
 
+# KNN
+X_train, X_test, labels_train, labels_test = train_test_split(
+    pca_casca_maca, labels, test_size=0.2, random_state=42
+)
 
-# pca = PCA(n_components=3)
-# pca_result = pca.fit_transform(bi_casca_maca)
+knn_classifier = KNeighborsClassifier(n_neighbors=3)
+knn_classifier.fit(X_train, labels_train)
+# knn_classifier.predict(X_test)
+
+labels_pred_test = knn_classifier.predict(X_test)
+accuracy_test = accuracy_score(labels_test, labels_pred_test)
+
+
+labels_pred_train = knn_classifier.predict(pca_casca_maca)
+accuracy_train = accuracy_score(labels_train, labels_pred_train)
+
+# labels_pred = knn_classifier.predict(X_train)
+# labels_pred = knn_classifier.predict(pca_casca_maca)
+# labels_pred = knn_classifier.predict(pca_casca_marmelo)
+
+# height, width, _ = hyp_casca_maca.shape
 #
-# # Extrair os valores dos PCs
-# pc1 = pca_result[:, 0]
-# pc2 = pca_result[:, 1]
-# pc3 = pca_result[:, 2]
+# # Reshape das labels preditas para a forma da imagem original
+# labels_pred_reshaped = labels_pred.reshape((height, width))
+# # labels_pred_reshaped = labels.reshape((height, width))
 #
-# # Plotar um gráfico 3D com cada PC colorido de forma diferente
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
+# # Crie uma matriz de zeros para as bandas R, G, B (assumindo que sua imagem é RGB)
+# result_image = np.zeros((height, width, 3), dtype=np.uint8)
 #
-# for i in range(len(pc1)):
-#     if i % 3 == 0:
-#         color = 'blue'  # PC1 em azul
-#     elif i % 3 == 1:
-#         color = 'red'  # PC2 em vermelho
-#     else:
-#         color = 'yellow'  # PC3 em amarelo
+# # Especifique as cores que você deseja atribuir a cada cluster
+# cluster_colors = {0: [255, 0, 0], 1: [0, 255, 0]}
 #
-#     ax.scatter(pc1[i], pc2[i], pc3[i], c=color)
-#
-# # Configurar os rótulos dos eixos
-# ax.set_xlabel('PC1')
-# ax.set_ylabel('PC2')
-# ax.set_zlabel('PC3')
-#
-# # Definir título
-# plt.title('Gráfico 3D dos PCs (PC1 em azul, PC2 em vermelho, PC3 em amarelo)')
-#
-# # Mostrar o gráfico
+# # Pinte a imagem de acordo com as labels preditas
+# for cluster_label, color in cluster_colors.items():
+#     result_image[labels_pred_reshaped == cluster_label] = color
+
+# Exiba a imagem resultante
+# plt.imshow(result_image)
+# plt.title("Resultado do KNN na Imagem Hiperespectral")
 # plt.show()
+
+# Calcule a acurácia comparando as previsões com os rótulos reais
+# accuracy = accuracy_score(labels_test, labels_pred)
+# Imprima as acurácias
+print(f'Acurácia do modelo KNN nos dados de teste: {accuracy_test:.2f}')
+print(f'Acurácia do modelo KNN nos dados de treino: {accuracy_train:.2f}')
+
+# Imprima a acurácia
+# print(f'Acurácia do modelo KNN: {accuracy:.2f}')
+
+# plt.imshow(bi_casca_maca[:, 0].reshape(231, 320), cmap='viridis')
+# plt.title(f'Banda {0} Original')
+# plt.show()
+# labels_pred = knn_classifier.predict(X_test)
 #
-# print()
-
-pca = PCA(n_components=3)
-pca_result = pca.fit_transform(bi_casca_maca)
-
-# Extrair os valores dos PCs
-pc1 = pca_result[:, 0]
-pc2 = pca_result[:, 1]
-pc3 = pca_result[:, 2]
-
-# Criar cores com base nos PCs
-colors = ['blue' if pc == 0 else 'red' if pc == 1 else 'yellow' for pc in range(3)]
-
-# Plotar um gráfico de dispersão em 2D com cada PC em uma cor diferente
-plt.figure(figsize=(8, 6))
-plt.scatter(pc1, pc2, c=colors)
-
-# Configurar os rótulos dos eixos
-plt.xlabel('PC1')
-plt.ylabel('PC2')
-
-# Definir título
-plt.title('Gráfico de Dispersão Casca Maca')
-
-# Mostrar o gráfico
-plt.show()
+# accuracy = accuracy_score(labels_test, labels_pred)
+# print(f'Acurácia do modelo KNN: {accuracy}')
+# pca_casca_marmelo = pca_banana(bi_casca_marmelo, 'Gráfico de Dispersão Casca Marmelo')
+# pca_casca_nanica = pca_banana(bi_casca_nanica, 'Gráfico de Dispersão Casca Nanica')
+# pca_casca_prata = pca_banana(bi_casca_prata, 'Gráfico de Dispersão Casca Prata')
+# pca_polpa_maca = pca_banana(bi_polpa_maca, 'Gráfico de Dispersão Polpa Maca')
+# pca_polpa_nanica = pca_banana(bi_polpa_nanica, 'Gráfico de Dispersão Polpa Nanica')
+# pca_polpa_prata = pca_banana(bi_polpa_prata, 'Gráfico de Dispersão Polpa Prata')
